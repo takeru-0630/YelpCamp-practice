@@ -33,7 +33,6 @@ app.use(express.urlencoded({ extended: true })); //解析POST 否則req.body會�
 app.use(methodOverride('_method'));
 
 const validateCampground = (req, res, next) => {
-
     const { error } = campgroundSchema.validate(req.body);
     if (error) {
         const msg = error.details.map(el => el.message).join(',');
