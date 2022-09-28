@@ -3,10 +3,12 @@ const path = require('path');
 const mongoose = require('mongoose');
 const ejsMate = require('ejs-mate');
 const Joi = require('joi');
+const { campgroundSchema } = require('./views/schemas');
 const catchAsync = require('./utils/catchAsync');
 const ExpressError = require('./utils/ExpressError');
 const methodOverride = require('method-override');
 const Campground = require('./models/campground');
+const { setDefaultResultOrder } = require('dns');
 
 
 mongoose.connect('mongodb://localhost:27017/yelp-camp', {
@@ -30,6 +32,17 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true })); //解析POST 否則req.body會是空值
 app.use(methodOverride('_method'));
 
+const validateCampground = (req, res, next) => {
+
+    const { error } = campgroundSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(',');
+        throw new ExpressError(msg, 404);
+    } else {
+        next();
+    }
+}
+
 app.get('/', (req, res) => {
     res.render('home')
 })
@@ -43,14 +56,9 @@ app.get('/campgrounds/new', (req, res) => {
     res.render('campgrounds/new');
 })
 
-app.post('/campgrounds', catchAsync(async (req, res, next) => {
+app.post('/campgrounds', validateCampground, catchAsync(async (req, res, next) => {
     // if (!req.body.campground) throw ExpressError('Invalid Campground Data', 400);
-    const campgroundSchema = Joi.object({
-        campground: Joi.object({
-            title: Joi.string().required(),
-            price: Joi.number().required().min(0),
-        }).required()
-    })
+
     const campground = new Campground(req.body.campground); //new.ejs裡把所有東西放在campground[]裡面
     await campground.save();
     res.redirect(`/campgrounds/${campground._id}`);
@@ -66,7 +74,7 @@ app.get('/campgrounds/:id/edit', catchAsync(async (req, res) => {
     res.render('campgrounds/edit', { campground });
 }))
 
-app.put('/campgrounds/:id', catchAsync(async (req, res) => {
+app.put('/campgrounds/:id', validateCampground, catchAsync(async (req, res) => {
     const { id } = req.params;
     const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
     res.redirect(`/campgrounds/${campground._id}`);
@@ -84,7 +92,7 @@ app.all('*', (req, res, next) => {
 
 app.use((err, req, res, next) => {
     const { statusCode = 500 } = err; //ExpressError丟來的err
-    if(!err.message) err.message = 'Oh no something went wrong';
+    if (!err.message) err.message = 'Oh no something went wrong';
     res.status(statusCode).render('error', { err }); //渲染error.ejs
 })
 
