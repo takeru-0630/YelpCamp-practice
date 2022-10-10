@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Review = require('./review');
 const Schema = mongoose.Schema;
 
 const CampgroundSchema = new Schema({
@@ -14,5 +15,16 @@ const CampgroundSchema = new Schema({
         }
     ] //和評論進行連接
 });
+
+CampgroundSchema.post('findOneAndDelete',async function(doc){
+    if (doc){
+        await Review.remove({
+            _id:{
+                $in: doc.reviews
+            }
+        })
+    }
+    console.log('deleteeeeeeeeee');
+}) //mongoose middleware
 
 module.exports = mongoose.model('Campground', CampgroundSchema);
